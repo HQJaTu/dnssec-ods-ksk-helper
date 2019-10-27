@@ -23,9 +23,15 @@ class ODS:
             raise ValueError("Zone %s doesn't exist!" % self.zone)
 
     def get_active_key(self):
+        return self._get_key_with_state(OdsKey.ODS_ZONE_STATUS_ACTIVE)
+
+    def get_key_to_publish(self):
+        return self._get_key_with_state(OdsKey.ODS_ZONE_STATUS_PUBLISH)
+
+    def _get_key_with_state(self, state: str):
         for keytag in self.keys:
             key = self.keys[keytag]
-            if key.state == OdsKey.ODS_ZONE_STATUS_ACTIVE:
+            if key.state == state:
                 return key
 
         return None
@@ -57,6 +63,7 @@ class ODS:
             line_parts = line.split()
             if not line_parts[0] == zone or not line_parts[1] == 'KSK':
                 continue
+            print(line_parts)
             keytag = line_parts[9]
             keystate = line_parts[2]
             keybits = int(line_parts[5])
@@ -65,7 +72,9 @@ class ODS:
             next_transition_str = '%s %s' % (line_parts[3], line_parts[4])
             next_transition = datetime.strptime(next_transition_str, '%Y-%m-%d %H:%M:%S')
 
-            key = OdsKey(Type='KSK', Tag=keytag, State=keystate, Bits=keybits, Algorithm=keyalgo, NextTransition=next_transition)
+            # Note: This output does NOT display the key digest algorithm.
+            key = OdsKey(Type='KSK', Tag=keytag, State=keystate, Bits=keybits, Algorithm=keyalgo,
+                         NextTransition=next_transition)
             keys[keytag] = key
 
         if not keys:
