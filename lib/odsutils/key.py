@@ -6,7 +6,8 @@ class OdsKey:
     ODS_ZONE_STATUS_ACTIVE = 'active'
     ODS_ZONE_STATUS_RETIRE = 'retire'
     ODS_ZONE_STATUS_PUBLISH = 'publish'
-    ODS_ZONE_STATUS = [ODS_ZONE_STATUS_ACTIVE, ODS_ZONE_STATUS_RETIRE, ODS_ZONE_STATUS_PUBLISH]
+    ODS_ZONE_STATUS_READY = 'ready'
+    ODS_ZONE_STATUS = [ODS_ZONE_STATUS_ACTIVE, ODS_ZONE_STATUS_RETIRE, ODS_ZONE_STATUS_PUBLISH, ODS_ZONE_STATUS_READY]
 
     # Algorithm numbers:
     # https://www.iana.org/assignments/dns-sec-alg-numbers/dns-sec-alg-numbers.xhtml
@@ -47,7 +48,7 @@ class OdsKey:
         if not (Type == 'KSK' or Type == 'ZSK'):
             raise ValueError("Key type needs to be either KSK or ZSK!")
         if State not in OdsKey.ODS_ZONE_STATUS:
-            raise ValueError("Key type needs to be either KSK or ZSK!")
+            raise ValueError("Need valid zone status! Got '%s'" % State)
         if Algorithm not in OdsKey.DNSSEC_KEY_ALGORITHMS.keys():
             raise ValueError("Unknown key algorithm %d!" % Algorithm)
         if Type == 'KSK' and DSDigest:

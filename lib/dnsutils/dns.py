@@ -23,9 +23,17 @@ class DNS:
             # Nothing left to strip. Use the TLD
             zone_to_query = initial_tld_info.suffix
 
-        ns = self._get_ns(zone_to_query)
+        if True:
+            ns = self._get_ns(zone_to_query)
 
-        answer = self._query(zone, 'DS', ns)
+            answer = self._udp_query(zone, 'DS', ns)
+        # Need to make the DNS-query directly to the parent.
+        # Our local server is likely to host the same zone, but won't have the DS-record in it.
+        #else:
+        #    ns = None
+        #    print("DEBUG: Query DS for %s" % zone)
+        #    answer = self._standard_query(zone, 'DS')
+
         if not answer:
             return (ns, None)
 
@@ -87,8 +95,30 @@ class DNS:
 
         return nameserver_to_use
 
-    def _query(self, name: str, rr_type: str, resolver: str = None):
+    def _standard_query(self, name: str, rr_type: str):
         verbose = False
+
+        try:
+            answer = self.resolver.query(name, rr_type)
+        except dns.resolver.NXDOMAIN:
+            if verbose:
+                print("Couldn't resolve %s-record for %s. No such thing found!" % (rr_type, name))
+            return False
+        except dns.exception.Timeout:
+            if verbose:
+                print("Couldn't resolve %s-record for %s. Timed out!" % (rr_type, name))
+            return None
+        except dns.resolver.NoAnswer:
+            if verbose:
+                print("Couldn't resolve %s-record for %s. No answer!" % (rr_type, name))
+            return None
+
+        return answer
+
+    def _udp_query(self, name: str, rr_type_str: str, resolver: str):
+        verbose = False
+        rr_type = dns.rdatatype.from_text(rr_type_str)
+        query_request = dns.message.make_query(name, rr_type)
         # Just pick one nameserver randomly from a set.
         # If only one exists, we'll use that one.
         if resolver:
@@ -97,18 +127,21 @@ class DNS:
             nameserver_to_use = random.choice(self.resolver.nameservers)
 
         try:
-            answer = self.resolver.query(name, rr_type)
+            resp = dns.query.udp(query_request, nameserver_to_use, timeout=DNS.DEFAULT_DNS_TIMEOUT)
         except dns.resolver.NXDOMAIN:
             if verbose:
-                print("Couldn't resolve %s-record for %s using %s. No such thing found!" % (rr_type, name, nameserver_to_use))
+                print("Couldn't resolve %s-record for %s using %s. No such thing found!" % (rr_type_str, name, nameserver_to_use))
             return False
         except dns.exception.Timeout:
             if verbose:
-                print("Couldn't resolve %s-record for %s using %s. Timed out!" % (rr_type, name, nameserver_to_use))
+                print("Couldn't resolve %s-record for %s using %s. Timed out!" % (rr_type_str, name, nameserver_to_use))
             return None
         except dns.resolver.NoAnswer:
             if verbose:
-                print("Couldn't resolve %s-record for %s using %s. No answer!" % (rr_type, name, nameserver_to_use))
+                print("Couldn't resolve %s-record for %s using %s. No answer!" % (rr_type_str, name, nameserver_to_use))
             return None
 
-        return answer
+        if not resp.answer:
+            return None
+
+        return resp.answer[0]
