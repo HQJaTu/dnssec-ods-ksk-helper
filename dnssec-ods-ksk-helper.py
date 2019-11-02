@@ -80,7 +80,7 @@ def zone_status(zone: ODS):
                 print("  Zone is royally messed up!")
 
     if dns_result:
-        print("  Zone has DS-record with tag %s" % (dns_result["keytag"]))
+        print("  Zone has DS-record with tag %s in DNS" % (dns_result["keytag"]))
         if active_key and active_key.tag == dns_result["keytag"]:
             print("  Found tags in active key and DS-record. Tags match. All good. Nothing to do.")
     else:
