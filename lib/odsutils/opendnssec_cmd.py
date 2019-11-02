@@ -16,7 +16,8 @@ class ODS:
         LIST_KSK_KEYS = 1,
         LIST_KSK_KEYS_DEBUG = 2,
         GET_PUBLISH_KSK_KEY = 3,
-        GET_READY_KSK_KEY = 4
+        GET_READY_KSK_KEY = 4,
+        GET_RETIRED_KSK_KEY = 5
 
     def __init__(self, ZoneName: str):
         self.zone = ZoneName
@@ -33,7 +34,7 @@ class ODS:
         if not key:
             return None
 
-        keys_info = self._get_publish_ksk_key_info()
+        keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_PUBLISH_KSK_KEY, self.zone)
         if key.tag in keys_info:
             key_info = keys_info[key.tag]
             key.ds_digest = key_info[1]
@@ -45,12 +46,26 @@ class ODS:
         if not key:
             return None
 
-        keys_info = self._get_ready_ksk_key_info()
+        keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_READY_KSK_KEY, self.zone)
         if key.tag in keys_info:
             key_info = keys_info[key.tag]
             key.ds_digest = key_info[1]
 
         return key
+
+    def get_retired_keys(self):
+        keys = self._get_keys_with_state(OdsKey.ODS_ZONE_STATUS_RETIRE)
+        if not keys:
+            return None
+
+        keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_RETIRED_KSK_KEY, self.zone)
+        for key_tag in keys:
+            key = keys[key_tag]
+            if key.tag in keys_info:
+                key_info = keys_info[key.tag]
+                key.ds_digest = key_info[1]
+
+        return keys
 
     def _get_key_with_state(self, state: str):
         for keytag in self.keys:
@@ -60,22 +75,17 @@ class ODS:
 
         return None
 
+    def _get_keys_with_state(self, state: str):
+        ret_keys = {}
+        for keytag in self.keys:
+            key = self.keys[keytag]
+            if key.state == state:
+                ret_keys[keytag] = key
+
+        return ret_keys
+
     def _get_zone_info(self):
         info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.LIST_KSK_KEYS, self.zone)
-        if not info:
-            return None
-
-        return info
-
-    def _get_publish_ksk_key_info(self):
-        info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_PUBLISH_KSK_KEY, self.zone)
-        if not info:
-            return None
-
-        return info
-
-    def _get_ready_ksk_key_info(self):
-        info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_READY_KSK_KEY, self.zone)
         if not info:
             return None
 
@@ -84,12 +94,14 @@ class ODS:
     def _ods_enforcer_helper(self, operation: OdsEnforcerOps, zone: str):
         if operation == ODS.OdsEnforcerOps.LIST_KSK_KEYS:
             cmd_args = ['key list', '--verbose', '--keytype', 'ksk', '--zone', zone]
+        elif operation == ODS.OdsEnforcerOps.LIST_KSK_KEYS_DEBUG:
+            cmd_args = ['key list', '--verbose', '--keytype', 'ksk', '--zone', zone, '--debug']
         elif operation == ODS.OdsEnforcerOps.GET_PUBLISH_KSK_KEY:
             cmd_args = ['key export', '--zone', zone, '--keytype ksk --keystate publish --ds']
         elif operation == ODS.OdsEnforcerOps.GET_READY_KSK_KEY:
             cmd_args = ['key export', '--zone', zone, '--keytype ksk --keystate ready --ds']
-        elif operation == ODS.OdsEnforcerOps.LIST_KSK_KEYS_DEBUG:
-            cmd_args = ['key list', '--verbose', '--keytype', 'ksk', '--zone', zone, '--debug']
+        elif operation == ODS.OdsEnforcerOps.GET_RETIRED_KSK_KEY:
+            cmd_args = ['key export', '--zone', zone, '--keytype ksk --keystate retire --ds']
         else:
             raise ValueError("Unknown ODS enforcer operation! Op: %d" % operation)
 
@@ -97,12 +109,14 @@ class ODS:
 
         if operation == ODS.OdsEnforcerOps.LIST_KSK_KEYS:
             return self._ods_enforcer_cmd_list_keys_result(result.stdout.decode('utf-8'), zone)
+        elif operation == ODS.OdsEnforcerOps.LIST_KSK_KEYS_DEBUG:
+            return self._ods_enforcer_cmd_list_keys_debug_result(result.stdout.decode('utf-8'), zone)
         elif operation == ODS.OdsEnforcerOps.GET_PUBLISH_KSK_KEY:
             return self._ods_enforcer_cmd_key_export_result(result.stdout.decode('utf-8'), zone)
         elif operation == ODS.OdsEnforcerOps.GET_READY_KSK_KEY:
             return self._ods_enforcer_cmd_key_export_result(result.stdout.decode('utf-8'), zone)
-        elif operation == ODS.OdsEnforcerOps.LIST_KSK_KEYS_DEBUG:
-            return self._ods_enforcer_cmd_list_keys_debug_result(result.stdout.decode('utf-8'), zone)
+        elif operation == ODS.OdsEnforcerOps.GET_RETIRED_KSK_KEY:
+            return self._ods_enforcer_cmd_key_export_result(result.stdout.decode('utf-8'), zone)
 
         return False
 
