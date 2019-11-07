@@ -133,7 +133,7 @@ class ODS:
             while not line_parts[bits_idx].isdigit():
                 bits_idx += 1
                 do_transition = False
-            keytag = line_parts[bits_idx + 4]
+            keytag = int(line_parts[bits_idx + 4])
             keybits = int(line_parts[bits_idx])
             keyalgo = int(line_parts[bits_idx + 1])
 
