@@ -58,6 +58,7 @@ def zone_status(zone: ODS):
             elif dns_result:
                 print("  Zone is waiting for KSK rollover")
                 print("    Suggest: To perform KSK rollover, do following:")
+
                 print("      To get new key published:")
                 print("      1) ods-enforcer key export --zone %s --keytype ksk --keystate ready --ds" % (zone.zone))
                 print("      2) In your Domain name registrar's user interface:")
@@ -70,8 +71,11 @@ def zone_status(zone: ODS):
                 print("         - Key digest: (see key export output)")
                 print("      3) ods-enforcer key ds-seen --zone %s --keytag %s" % (zone.zone, ready_key.tag))
 
-                if dns_result["keytag"] in retired_keys:
-                    retired_key = retired_keys[dns_result["keytag"]]
+                result_set = set(dns_result.keys())
+                retired_set = set(retired_keys)
+                intersect = result_set.intersection(retired_set)
+                if intersect:
+                    retired_key = retired_keys[intersect.pop()]
                     print("")
                     print("      To get old key retired:")
                     print("      1) Important: Do this only after new key steps have been completed!")
@@ -80,8 +84,10 @@ def zone_status(zone: ODS):
                 print("  Zone is royally messed up!")
 
     if dns_result:
-        print("  Zone has DS-record with tag %s in DNS" % (dns_result["keytag"]))
-        if active_key and active_key.tag == dns_result["keytag"]:
+        for keytag in dns_result:
+            rr = dns_result[keytag]
+            print("  Zone has DS-record with tag %s in DNS server %s" % (rr["keytag"], resolver))
+        if active_key and active_key.tag in dns_result.keys():
             print("  Found tags in active key and DS-record. Tags match. All good. Nothing to do.")
     else:
         print("  Zone has no DS-records in DNS %s" % resolver)

@@ -23,10 +23,8 @@ class DNS:
             # Nothing left to strip. Use the TLD
             zone_to_query = initial_tld_info.suffix
 
-        if True:
-            ns = self._get_ns(zone_to_query)
-
-            answer = self._udp_query(zone, 'DS', ns)
+        ns = self._get_ns(zone_to_query)
+        answers = self._udp_query(zone, 'DS', ns)
         # Need to make the DNS-query directly to the parent.
         # Our local server is likely to host the same zone, but won't have the DS-record in it.
         #else:
@@ -34,17 +32,23 @@ class DNS:
         #    print("DEBUG: Query DS for %s" % zone)
         #    answer = self._standard_query(zone, 'DS')
 
-        if not answer:
+        if not answers:
             return (ns, None)
 
-        answer_parts = str(answer[0]).split()
+        ret = {}
+        for answer in answers:
+            # For sanity: Confirm we have a DS-record in answer
+            # dns.rdatatype.to_text(answer.rdtype) == 'DS'
+            if answer.rdtype != 43:
+                continue
+            ret[answer.key_tag] = {
+                "keytag": answer.key_tag,
+                "keyalgo": int(answer.algorithm),
+                "keylabels": int(answer.digest_type),
+                "key": answer.digest.hex()
+            }
 
-        return (ns, {
-            "keytag": answer_parts[0],
-            "keyalgo": int(answer_parts[1]),
-            "keylabels": int(answer_parts[2]),
-            "key": answer_parts[3]
-        })
+        return ns, ret
 
     def _get_ns(self, zone: str):
         verbose = False

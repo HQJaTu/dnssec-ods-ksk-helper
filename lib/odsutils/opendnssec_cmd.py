@@ -35,7 +35,7 @@ class ODS:
             return None
 
         keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_PUBLISH_KSK_KEY, self.zone)
-        if key.tag in keys_info:
+        if str(key.tag) in keys_info:
             key_info = keys_info[key.tag]
             key.ds_digest = key_info[1]
 
@@ -47,7 +47,7 @@ class ODS:
             return None
 
         keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_READY_KSK_KEY, self.zone)
-        if key.tag in keys_info:
+        if str(key.tag) in keys_info:
             key_info = keys_info[key.tag]
             key.ds_digest = key_info[1]
 
@@ -61,7 +61,7 @@ class ODS:
         keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_RETIRED_KSK_KEY, self.zone)
         for key_tag in keys:
             key = keys[key_tag]
-            if key.tag in keys_info:
+            if str(key.tag) in keys_info:
                 key_info = keys_info[key.tag]
                 key.ds_digest = key_info[1]
 
@@ -80,7 +80,7 @@ class ODS:
         for keytag in self.keys:
             key = self.keys[keytag]
             if key.state == state:
-                ret_keys[keytag] = key
+                ret_keys[int(keytag)] = key
 
         return ret_keys
 
