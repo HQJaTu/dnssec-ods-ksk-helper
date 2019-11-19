@@ -13,6 +13,7 @@ def zone_status(zone: ODS):
 
     # ODS-enforcer status
     active_key = zone.get_active_key()
+    retired_keys = zone.get_retired_keys()
 
     # DNS-status:
     (resolver, dns_result) = dns.get_ds(zone.zone)
@@ -21,6 +22,22 @@ def zone_status(zone: ODS):
     if active_key:
         print("  Zone has active %s (%d bits) key with tag %s" % (active_key.get_key_name(),
                                                                   active_key.bits, active_key.tag))
+        if retired_keys:
+            result_set = set(dns_result.keys())
+            retired_set = set(retired_keys)
+            intersect = result_set.intersection(retired_set)
+            if intersect:
+                retired_key = retired_keys[intersect.pop()]
+                print("  Zone has performed a KSK rollover")
+                print("    Suggest: To perform KSK rollover to the end, do following:")
+                print("      To get old key retired:")
+                print("      0) Make sure your DNS-changes are full propagated.")
+                print("         This message will display as long as changes can not be detected.")
+                print("      1) (optional) If your Domain name registrar supports multiple keys, "
+                      "remove key with tag %d"
+                      % retired_key.tag)
+                print("      2) ods-enforcer key ds-gone --zone %s --keytag %s" % (zone.zone, retired_key.tag))
+
     else:
         print("  Zone has no active keys")
         publish_key = zone.get_key_to_publish()
@@ -34,7 +51,7 @@ def zone_status(zone: ODS):
             else:
                 print("    Suggest: To publish the key, do following:")
                 print("      1) ods-enforcer key ds-submit --zone %s --keytag %s" % (zone.zone, publish_key.tag))
-                print("      2) ods-enforcer key export --zone %s --keytype ksk --keystate publish --ds" % (zone.zone))
+                print("      2) ods-enforcer key export --zone %s --keytype ksk --keystate publish --ds" % zone.zone)
                 print("      3) In your Domain name registrar's user interface:")
                 print("         upload information from step 2) into zone %s DNSSEC setup with following details:" % (
                     zone.zone))
@@ -48,7 +65,6 @@ def zone_status(zone: ODS):
 
         ready_key = zone.get_ready_key()
         if ready_key:
-            retired_keys = zone.get_retired_keys()
             if not retired_keys:
                 print("  Zone is waiting for a %s (%d bits) key with tag %s to be DS-seen" % (ready_key.get_key_name(),
                                                                                               ready_key.bits,
@@ -58,18 +74,29 @@ def zone_status(zone: ODS):
             elif dns_result:
                 print("  Zone is waiting for KSK rollover")
                 print("    Suggest: To perform KSK rollover, do following:")
-
                 print("      To get new key published:")
-                print("      1) ods-enforcer key export --zone %s --keytype ksk --keystate ready --ds" % (zone.zone))
-                print("      2) In your Domain name registrar's user interface:")
-                print("         upload information from step 1) into zone %s DNSSEC setup with following details:" % (
-                    zone.zone))
-                print("         - Key tag: %s" % ready_key.tag)
-                print("         - Key algorithm: %d (%s)" % (ready_key.algorithm, ready_key.get_key_name()))
-                print(
-                    "         - Key digest type: %s (%s)" % (ready_key.ds_digest, ready_key.get_key_digest_name()))
-                print("         - Key digest: (see key export output)")
-                print("      3) ods-enforcer key ds-seen --zone %s --keytag %s" % (zone.zone, ready_key.tag))
+
+                result_set = set(dns_result.keys())
+                ready_set = {ready_key.tag}
+                intersect = result_set.intersection(ready_set)
+                if intersect:
+                    print("      1) ods-enforcer key ds-seen --zone %s --keytag %s" % (zone.zone, ready_key.tag))
+                else:
+                    print("      1) ods-enforcer key export --zone %s --keytype ksk"
+                          "--keystate ready --ds" % zone.zone)
+                    print("      2) In your Domain name registrar's user interface:")
+                    print("         upload information from step 1) into zone %s DNSSEC setup"
+                          "with following details:" % (
+                              zone.zone))
+                    print("         - Key tag: %s" % ready_key.tag)
+                    print("         - Key algorithm: %d (%s)" % (ready_key.algorithm, ready_key.get_key_name()))
+                    print("         - Key digest type: %s (%s)" % (ready_key.ds_digest,
+                                                                   ready_key.get_key_digest_name()))
+                    print("         - Key digest: (see key export output)")
+                    print("      3) Wait. Keep running this command until you see a "
+                          "'Zone has DS-record with tag %d in DNS'"
+                          % ready_key.tag)
+                    print("      4) ods-enforcer key ds-seen --zone %s --keytag %s" % (zone.zone, ready_key.tag))
 
                 result_set = set(dns_result.keys())
                 retired_set = set(retired_keys)
@@ -78,10 +105,28 @@ def zone_status(zone: ODS):
                     retired_key = retired_keys[intersect.pop()]
                     print("")
                     print("      To get old key retired:")
-                    print("      1) Important: Do this only after new key steps have been completed!")
+                    print("      0) Important: Do this only after new key steps have been completed!")
+                    print("      1) (optional) If your Domain name registrar supports multiple keys, "
+                          "remove key with tag %d"
+                          % retired_key.tag)
                     print("      2) ods-enforcer key ds-gone --zone %s --keytag %s" % (zone.zone, retired_key.tag))
             else:
                 print("  Zone is royally messed up!")
+        elif retired_keys:
+            result_set = set(dns_result.keys())
+            retired_set = set(retired_keys)
+            intersect = result_set.intersection(retired_set)
+            if intersect:
+                retired_key = retired_keys[intersect.pop()]
+                print("  Zone is waiting for KSK rollover")
+                print("    Suggest: To perform KSK rollover to the end, do following:")
+                print("      To get old key retired:")
+                print("      0) Make sure your DNS-changes are full propagated.")
+                print("         This message will display as long as changes can not be detected.")
+                print("      1) (optional) If your Domain name registrar supports multiple keys, "
+                      "remove key with tag %d"
+                      % retired_key.tag)
+                print("      2) ods-enforcer key ds-gone --zone %s --keytag %s" % (zone.zone, retired_key.tag))
 
     if dns_result:
         for keytag in dns_result:

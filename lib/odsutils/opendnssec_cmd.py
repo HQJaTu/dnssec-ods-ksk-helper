@@ -35,7 +35,7 @@ class ODS:
             return None
 
         keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_PUBLISH_KSK_KEY, self.zone)
-        if str(key.tag) in keys_info:
+        if key.tag in keys_info:
             key_info = keys_info[key.tag]
             key.ds_digest = key_info[1]
 
@@ -47,9 +47,11 @@ class ODS:
             return None
 
         keys_info = self._ods_enforcer_helper(ODS.OdsEnforcerOps.GET_READY_KSK_KEY, self.zone)
-        if str(key.tag) in keys_info:
+        if key.tag in keys_info:
             key_info = keys_info[key.tag]
             key.ds_digest = key_info[1]
+        else:
+            print("Internal: Whaaat! Key information not found.")
 
         return key
 
@@ -160,7 +162,7 @@ class ODS:
             line_parts = line.split()
             if not (line_parts[0] == '%s.' % zone and line_parts[2] == 'IN' and line_parts[3] == 'DS'):
                 continue
-            keytag = line_parts[4]
+            keytag = int(line_parts[4])
             keyalgo = int(line_parts[5])
             keydigest_type = int(line_parts[6])
             keydigest = line_parts[7]
